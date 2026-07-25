@@ -70,9 +70,20 @@ export async function DELETE(
   const { id } = await params;
   const profile = await prisma.studentProfile.findUnique({ where: { id } });
 
-  if (profile && profile.userId) {
-    await prisma.user.delete({ where: { id: profile.userId } });
+  if (!profile) {
+    return NextResponse.json({ error: "Student not found" }, { status: 404 });
   }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.attendance.deleteMany({ where: { studentId: id } });
+    await tx.result.deleteMany({ where: { studentId: id } });
+    await tx.parentProfile.updateMany({ where: { students: { some: { id } } }, data: { students: { disconnect: { id } } } });
+    if (profile.userId) {
+      await tx.user.delete({ where: { id: profile.userId } });
+    } else {
+      await tx.studentProfile.delete({ where: { id } });
+    }
+  });
 
   return NextResponse.json({ success: true });
 }

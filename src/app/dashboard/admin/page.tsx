@@ -417,7 +417,6 @@ export default function AdminDashboard() {
                   <form onSubmit={(e) => handleSubmit(e, "student", studentForm)} className="space-y-4">
                     <Input label="Full Name" value={studentForm.name} onChange={(v) => setStudentForm({ ...studentForm, name: v })} required />
                     <Input label="Email" type="email" value={studentForm.email} onChange={(v) => setStudentForm({ ...studentForm, email: v })} required />
-                    {modal.mode === "add" && <Input label="Password" type="password" value={studentForm.password} onChange={(v) => setStudentForm({ ...studentForm, password: v })} required />}
                     <div className="grid grid-cols-2 gap-4">
                       <Select label="Class" value={studentForm.classId} onChange={(v) => setStudentForm({ ...studentForm, classId: v })} options={classes.map((c) => ({ value: c.id, label: `${c.name} - ${c.section}` }))} required />
                       <Select label="Gender" value={studentForm.gender} onChange={(v) => setStudentForm({ ...studentForm, gender: v })} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} />
@@ -434,7 +433,6 @@ export default function AdminDashboard() {
                   <form onSubmit={(e) => handleSubmit(e, "teacher", teacherForm)} className="space-y-4">
                     <Input label="Full Name" value={teacherForm.name} onChange={(v) => setTeacherForm({ ...teacherForm, name: v })} required />
                     <Input label="Email" type="email" value={teacherForm.email} onChange={(v) => setTeacherForm({ ...teacherForm, email: v })} required />
-                    {modal.mode === "add" && <Input label="Password" type="password" value={teacherForm.password} onChange={(v) => setTeacherForm({ ...teacherForm, password: v })} required />}
                     <Input label="Phone" value={teacherForm.phone} onChange={(v) => setTeacherForm({ ...teacherForm, phone: v })} />
                     <Input label="Address" value={teacherForm.address} onChange={(v) => setTeacherForm({ ...teacherForm, address: v })} />
                     <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium">Save</button>
@@ -444,7 +442,6 @@ export default function AdminDashboard() {
                   <form onSubmit={(e) => handleSubmit(e, "parent", parentForm)} className="space-y-4">
                     <Input label="Full Name" value={parentForm.name} onChange={(v) => setParentForm({ ...parentForm, name: v })} required />
                     <Input label="Email" type="email" value={parentForm.email} onChange={(v) => setParentForm({ ...parentForm, email: v })} required />
-                    {modal.mode === "add" && <Input label="Password" type="password" value={parentForm.password} onChange={(v) => setParentForm({ ...parentForm, password: v })} required />}
                     <Input label="Phone" value={parentForm.phone} onChange={(v) => setParentForm({ ...parentForm, phone: v })} />
                     <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium">Save</button>
                   </form>

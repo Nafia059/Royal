@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { name, email, password, schoolId, classId, dateOfBirth, gender, phone, address, admissionNumber, guardianName } = body;
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword = await bcrypt.hash(password || "password123", 10);
 
   const student = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({

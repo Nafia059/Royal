@@ -67,9 +67,24 @@ export async function DELETE(
   const { id } = await params;
   const profile = await prisma.teacherProfile.findUnique({ where: { id } });
 
-  if (profile && profile.userId) {
-    await prisma.user.delete({ where: { id: profile.userId } });
+  if (!profile) {
+    return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
   }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.teacherSubjectAssignment.deleteMany({ where: { teacherId: id } });
+    await tx.exam.updateMany({ where: { createdById: id }, data: { createdById: null } });
+    await tx.result.updateMany({ where: { uploadedById: id }, data: { uploadedById: null } });
+    await tx.homeTask.updateMany({ where: { assignedById: id }, data: { assignedById: null } });
+    await tx.attendance.updateMany({ where: { markedById: id }, data: { markedById: null } });
+    await tx.timetableSlot.updateMany({ where: { teacherId: id }, data: { teacherId: null } });
+    await tx.class.updateMany({ where: { classTeacherId: id }, data: { classTeacherId: null } });
+    if (profile.userId) {
+      await tx.user.delete({ where: { id: profile.userId } });
+    } else {
+      await tx.teacherProfile.delete({ where: { id } });
+    }
+  });
 
   return NextResponse.json({ success: true });
 }

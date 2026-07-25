@@ -130,7 +130,6 @@ model TeacherProfile {
   address         String?
   email           String?
 
-  subjects        Subject[] @relation("TeacherSubjects")
   assignments     TeacherSubjectAssignment[]
   markedAttendances Attendance[]
   createdExams    Exam[]

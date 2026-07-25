@@ -7,13 +7,11 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const schoolId = searchParams.get("schoolId");
   const classId = searchParams.get("classId");
   const subjectId = searchParams.get("subjectId");
   const date = searchParams.get("date");
 
   const where: Record<string, string> = {};
-  if (schoolId) where.schoolId = schoolId;
   if (classId) where.classId = classId;
   if (subjectId) where.subjectId = subjectId;
   if (date) where.date = date;
@@ -22,7 +20,7 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       student: { include: { user: { select: { username: true } } } },
-      class: true,
+      studentClass: true,
       subject: true,
     },
     orderBy: { date: "desc" },
@@ -37,18 +35,16 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { records, schoolId, classId, subjectId, date } = body;
+  const { records, classId, subjectId, date } = body;
 
   const attendance = await prisma.$transaction(async (tx) => {
     const created = await tx.attendance.createMany({
-      data: records.map((r: { studentId: string; status: string; remarks?: string }) => ({
+      data: records.map((r: { studentId: string; status: string }) => ({
         studentId: r.studentId,
         classId,
         subjectId,
-        schoolId,
         date,
         status: r.status,
-        remarks: r.remarks,
       })),
     });
 

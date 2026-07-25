@@ -32,18 +32,18 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { name, email, phone, address, occupation } = body;
+  const { username, email, phone } = body;
 
   const parent = await prisma.$transaction(async (tx) => {
     const profile = await tx.parentProfile.update({
       where: { id },
-      data: { phone, address, occupation },
+      data: { phone },
     });
 
-    if (name || email) {
+    if (username || email) {
       await tx.user.update({
         where: { id: profile.userId },
-        data: { ...(name && { name }), ...(email && { email }) },
+        data: { ...(username && { username }), ...(email && { email }) },
       });
     }
 

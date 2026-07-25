@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       user: { select: { id: true, username: true, email: true } },
-      subjectAssignments: { include: { subject: true, class: true } },
+      subjectAssignments: { include: { subject: true, assignedClass: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -31,23 +31,22 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, email, password, schoolId, phone, address, qualification, employeeId } = body;
+  const { name, email, password, schoolId, phone, address } = body;
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const teacher = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
-      data: { name, email, password: hashedPassword, role: "TEACHER", schoolId },
+      data: { username: name, email, passwordHash: hashedPassword, role: "TEACHER", schoolId },
     });
 
     const profile = await tx.teacherProfile.create({
       data: {
         userId: user.id,
         schoolId,
+        fullName: name,
         phone,
         address,
-        qualification,
-        employeeId,
       },
     });
 

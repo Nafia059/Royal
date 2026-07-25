@@ -14,7 +14,7 @@ export async function GET(
     where: { id },
     include: {
       user: { select: { id: true, username: true, email: true } },
-      subjectAssignments: { include: { subject: true, class: true } },
+      subjectAssignments: { include: { subject: true, assignedClass: true } },
     },
   });
 
@@ -35,18 +35,18 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { name, email, phone, address, qualification, employeeId } = body;
+  const { username, email, phone, address } = body;
 
   const teacher = await prisma.$transaction(async (tx) => {
     const profile = await tx.teacherProfile.update({
       where: { id },
-      data: { phone, address, qualification, employeeId },
+      data: { phone, address },
     });
 
-    if (name || email) {
+    if (username || email) {
       await tx.user.update({
         where: { id: profile.userId },
-        data: { ...(name && { name }), ...(email && { email }) },
+        data: { ...(username && { username }), ...(email && { email }) },
       });
     }
 

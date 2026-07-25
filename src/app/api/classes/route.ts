@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   const classes = await prisma.class.findMany({
     where,
-    include: { students: true, teacher: { include: { user: { select: { username: true } } } } },
+    include: { students: true, classTeacher: { include: { user: { select: { username: true } } } } },
     orderBy: { name: "asc" },
   });
 
@@ -27,10 +27,10 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, section, schoolId, teacherId, capacity } = body;
+  const { name, section, schoolId, teacherId } = body;
 
   const cls = await prisma.class.create({
-    data: { name, section, schoolId, teacherId, capacity },
+    data: { name, section, schoolId, classTeacherId: teacherId },
   });
 
   return NextResponse.json(cls, { status: 201 });

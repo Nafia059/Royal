@@ -11,13 +11,12 @@ export async function GET(request: NextRequest) {
   const classId = searchParams.get("classId");
 
   const where: Record<string, string> = {};
-  if (schoolId) where.schoolId = schoolId;
-  if (classId) where.classId = classId;
+  if (classId) where.assignedClassId = classId;
 
   const tasks = await prisma.homeTask.findMany({
     where,
     include: {
-      class: true,
+      assignedClass: true,
       subject: true,
       teacher: { include: { user: { select: { username: true } } } },
     },
@@ -33,17 +32,16 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { title, description, dueDate, classId, subjectId, teacherId, schoolId } = body;
+  const { title, description, dueDate, classId, subjectId, teacherId } = body;
 
   const task = await prisma.homeTask.create({
     data: {
       title,
       description,
       dueDate: new Date(dueDate),
-      classId,
+      assignedClassId: classId,
       subjectId,
-      teacherId,
-      schoolId,
+      assignedById: teacherId,
     },
   });
 

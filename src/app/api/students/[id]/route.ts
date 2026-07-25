@@ -12,7 +12,7 @@ export async function GET(
   const { id } = await params;
   const student = await prisma.studentProfile.findUnique({
     where: { id },
-    include: { class: true, user: { select: { id: true, username: true, email: true } } },
+    include: { studentClass: true, user: { select: { id: true, username: true, email: true } } },
   });
 
   if (!student) {
@@ -32,7 +32,7 @@ export async function PUT(
 
   const { id } = await params;
   const body = await request.json();
-  const { name, email, classId, dateOfBirth, gender, phone, address } = body;
+  const { username, email, classId, dateOfBirth, gender, phone, address } = body;
 
   const student = await prisma.$transaction(async (tx) => {
     const profile = await tx.studentProfile.update({
@@ -46,10 +46,10 @@ export async function PUT(
       },
     });
 
-    if (name || email) {
+    if (username || email) {
       await tx.user.update({
         where: { id: profile.userId },
-        data: { ...(name && { name }), ...(email && { email }) },
+        data: { ...(username && { username }), ...(email && { email }) },
       });
     }
 

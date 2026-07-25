@@ -7,25 +7,25 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const schoolId = searchParams.get("schoolId");
   const examId = searchParams.get("examId");
   const studentId = searchParams.get("studentId");
   const classId = searchParams.get("classId");
 
-  const where: Record<string, string> = {};
-  if (schoolId) where.schoolId = schoolId;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: any = {};
   if (examId) where.examId = examId;
   if (studentId) where.studentId = studentId;
-  if (classId) where.classId = classId;
+  if (classId) {
+    const exams = await prisma.exam.findMany({ where: { assignedClassId: classId }, select: { id: true } });
+    where.examId = { in: exams.map((e) => e.id) };
+  }
 
   const results = await prisma.result.findMany({
     where,
     include: {
       student: { include: { user: { select: { username: true } } } },
-      exam: true,
-      subject: true,
+      exam: { include: { subject: true, assignedClass: true } },
     },
-    orderBy: { createdAt: "desc" },
   });
 
   return NextResponse.json(results);
@@ -37,18 +37,14 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { records, examId, schoolId, classId, subjectId } = body;
+  const { records, examId } = body;
 
   const results = await prisma.$transaction(async (tx) => {
     const created = await tx.result.createMany({
-      data: records.map((r: { studentId: string; marksObtained: number; remarks?: string }) => ({
+      data: records.map((r: { studentId: string; marksObtained: number }) => ({
         studentId: r.studentId,
         examId,
-        subjectId,
-        classId,
-        schoolId,
         marksObtained: r.marksObtained,
-        remarks: r.remarks,
       })),
     });
 

@@ -28,17 +28,17 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, email, password, schoolId, phone, address, occupation } = body;
+  const { name, email, password, schoolId, phone } = body;
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const parent = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
-      data: { name, email, password: hashedPassword, role: "PARENT", schoolId },
+      data: { username: name, email, passwordHash: hashedPassword, role: "PARENT", schoolId },
     });
 
     const profile = await tx.parentProfile.create({
-      data: { userId: user.id, schoolId, phone, address, occupation },
+      data: { userId: user.id, schoolId, fullName: name, phone },
     });
 
     return profile;

@@ -7,17 +7,15 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const schoolId = searchParams.get("schoolId");
   const classId = searchParams.get("classId");
 
   const where: Record<string, string> = {};
-  if (schoolId) where.schoolId = schoolId;
-  if (classId) where.classId = classId;
+  if (classId) where.assignedClassId = classId;
 
   const exams = await prisma.exam.findMany({
     where,
-    include: { class: true, subject: true, results: true },
-    orderBy: { date: "desc" },
+    include: { assignedClass: true, subject: true, results: true },
+    orderBy: { examDate: "desc" },
   });
 
   return NextResponse.json(exams);
@@ -29,18 +27,16 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, date, classId, subjectId, schoolId, totalMarks, passingMarks, type } = body;
+  const { name, examDate, classId, subjectId, totalMarks, passingMarks } = body;
 
   const exam = await prisma.exam.create({
     data: {
       name,
-      date: new Date(date),
-      classId,
+      examDate: new Date(examDate),
+      assignedClassId: classId,
       subjectId,
-      schoolId,
       totalMarks,
       passingMarks,
-      type,
     },
   });
 

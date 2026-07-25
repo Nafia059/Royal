@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   const students = await prisma.studentProfile.findMany({
     where,
-    include: { class: true, user: { select: { id: true, username: true, email: true } } },
+    include: { studentClass: true, user: { select: { id: true, username: true, email: true } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -30,21 +30,23 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { name, email, password, schoolId, classId, dateOfBirth, gender, phone, address, admissionNumber } = body;
+  const { name, email, password, schoolId, classId, dateOfBirth, gender, phone, address, admissionNumber, guardianName } = body;
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const student = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
-      data: { name, email, password: hashedPassword, role: "STUDENT", schoolId },
+      data: { username: name, email, passwordHash: hashedPassword, role: "STUDENT", schoolId },
     });
 
     const profile = await tx.studentProfile.create({
       data: {
         userId: user.id,
         schoolId,
+        fullName: name,
+        guardianName: guardianName || "",
         classId,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : new Date(),
         gender,
         phone,
         address,

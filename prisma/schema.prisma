@@ -1,0 +1,350 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model School {
+  id            String   @id @default(cuid())
+  name          String
+  trialEndDate  DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  users         User[]
+  classes       Class[]
+  subjects      Subject[]
+  students      StudentProfile[]
+  teachers      TeacherProfile[]
+  parents       ParentProfile[]
+}
+
+model User {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  email         String?
+  passwordHash  String
+  role          String
+  isActive      Boolean  @default(true)
+  schoolId      String?
+  school        School?  @relation(fields: [schoolId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  adminManager  AdminManager?
+  teacherProfile TeacherProfile?
+  studentProfile StudentProfile?
+  parentProfile ParentProfile?
+}
+
+model AdminManager {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName        String
+  phone           String?
+  employeeId      String?
+  canManageStudents Boolean @default(true)
+  canManageTeachers Boolean @default(true)
+  canManageClasses  Boolean @default(true)
+  createdAt       DateTime @default(now())
+}
+
+model Class {
+  id            String   @id @default(cuid())
+  name          String
+  section       String
+  academicYear  String   @default("2024-2025")
+  schoolId      String?
+  school        School?  @relation(fields: [schoolId], references: [id])
+  classTeacherId String?
+  classTeacher  TeacherProfile? @relation(fields: [classTeacherId], references: [id])
+  createdAt     DateTime @default(now())
+
+  students      StudentProfile[]
+  attendances   Attendance[]
+  exams         Exam[]
+  assignments   TeacherSubjectAssignment[]
+  homeTasks     HomeTask[]
+  timetableSlots TimetableSlot[]
+
+  @@unique([name, section, academicYear])
+}
+
+model Subject {
+  id            String   @id @default(cuid())
+  name          String
+  code          String   @unique
+  schoolId      String?
+  school        School?  @relation(fields: [schoolId], references: [id])
+
+  assignments   TeacherSubjectAssignment[]
+  attendances   Attendance[]
+  exams         Exam[]
+  homeTasks     HomeTask[]
+  timetableSlots TimetableSlot[]
+}
+
+model StudentProfile {
+  id              String   @id @default(cuid())
+  userId          String?  @unique
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schoolId        String?
+  school          School?  @relation(fields: [schoolId], references: [id])
+  fullName        String
+  guardianName    String
+  email           String?
+  dateOfBirth     DateTime
+  gender          String   @default("M")
+  rollNumber      String?
+  admissionNumber String?
+  classId         String?
+  studentClass    Class?   @relation(fields: [classId], references: [id])
+  admissionDate   DateTime @default(now())
+  phone           String?
+  address         String?
+
+  attendances     Attendance[]
+  results         Result[]
+  parents         ParentProfile[] @relation("StudentParents")
+
+  @@unique([rollNumber])
+  @@unique([admissionNumber])
+}
+
+model TeacherProfile {
+  id              String   @id @default(cuid())
+  userId          String?  @unique
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schoolId        String?
+  school          School?  @relation(fields: [schoolId], references: [id])
+  fullName        String
+  dateOfBirth     DateTime?
+  gender          String   @default("M")
+  employeeId      String?
+  joiningDate     DateTime?
+  phone           String?
+  address         String?
+  email           String?
+
+  subjects        Subject[] @relation("TeacherSubjects")
+  assignments     TeacherSubjectAssignment[]
+  markedAttendances Attendance[]
+  createdExams    Exam[]
+  uploadedResults Result[]
+  homeTasks       HomeTask[]
+  assignedClass   Class[]
+  timetableSlots  TimetableSlot[]
+
+  @@unique([employeeId])
+}
+
+model ParentProfile {
+  id              String   @id @default(cuid())
+  userId          String?  @unique
+  user            User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schoolId        String?
+  school          School?  @relation(fields: [schoolId], references: [id])
+  fullName        String
+  relation        String   @default("father")
+  phone           String?
+  email           String?
+
+  students        StudentProfile[] @relation("StudentParents")
+}
+
+model TeacherSubjectAssignment {
+  id              String   @id @default(cuid())
+  teacherId       String
+  teacher         TeacherProfile @relation(fields: [teacherId], references: [id])
+  subjectId       String
+  subject         Subject  @relation(fields: [subjectId], references: [id])
+  assignedClassId String
+  assignedClass   Class    @relation(fields: [assignedClassId], references: [id])
+  academicYear    String   @default("2024-2025")
+
+  @@unique([teacherId, subjectId, assignedClassId, academicYear])
+}
+
+model Attendance {
+  id              String   @id @default(cuid())
+  studentId       String
+  student         StudentProfile @relation(fields: [studentId], references: [id])
+  classId         String?
+  studentClass    Class?   @relation(fields: [classId], references: [id])
+  subjectId       String
+  subject         Subject  @relation(fields: [subjectId], references: [id])
+  markedById      String?
+  markedBy        TeacherProfile? @relation(fields: [markedById], references: [id])
+  date            DateTime
+  status          String   @default("present")
+
+  @@unique([studentId, subjectId, date])
+}
+
+model Exam {
+  id              String   @id @default(cuid())
+  name            String
+  subjectId       String
+  subject         Subject  @relation(fields: [subjectId], references: [id])
+  assignedClassId String
+  assignedClass   Class    @relation(fields: [assignedClassId], references: [id])
+  createdById     String?
+  createdBy       TeacherProfile? @relation(fields: [createdById], references: [id])
+  examDate        DateTime
+  totalMarks      Int      @default(100)
+  passingMarks    Int      @default(40)
+
+  results         Result[]
+
+  @@unique([subjectId, assignedClassId, examDate])
+}
+
+model Result {
+  id              String   @id @default(cuid())
+  studentId       String
+  student         StudentProfile @relation(fields: [studentId], references: [id])
+  examId          String
+  exam            Exam     @relation(fields: [examId], references: [id])
+  marksObtained   Float
+  uploadedById    String?
+  uploadedBy      TeacherProfile? @relation(fields: [uploadedById], references: [id])
+
+  @@unique([studentId, examId])
+}
+
+model HomeTask {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  assignedClassId String
+  assignedClass   Class    @relation(fields: [assignedClassId], references: [id])
+  subjectId       String
+  subject         Subject  @relation(fields: [subjectId], references: [id])
+  assignedById    String?
+  assignedBy      TeacherProfile? @relation(fields: [assignedById], references: [id])
+  assignedDate    DateTime @default(now())
+  dueDate         DateTime
+
+  @@unique([title, assignedClassId])
+}
+
+model TimetableSlot {
+  id              String   @id @default(cuid())
+  assignedClassId String
+  assignedClass   Class    @relation(fields: [assignedClassId], references: [id])
+  subjectId       String
+  subject         Subject  @relation(fields: [subjectId], references: [id])
+  teacherId       String?
+  teacher         TeacherProfile? @relation(fields: [teacherId], references: [id])
+  day             String
+  periodNumber    Int
+  startTime       String
+  endTime         String
+  duration        Int      @default(45)
+
+  @@unique([assignedClassId, day, periodNumber])
+}
+
+model Employee {
+  id              String   @id @default(cuid())
+  employeeId      String   @unique
+  fullName        String
+  fatherName      String?
+  cnic            String?
+  designation     String
+  department      String   @default("Teaching Staff")
+  employmentType  String   @default("permanent")
+  skillLevel      String?
+  gender          String?
+  mobile          String?
+  email           String?
+  joiningDate     DateTime?
+  bankName        String?
+  bankAccount     String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  salaryConfig    SalaryConfig?
+  salaryRecords   SalaryRecord[]
+}
+
+model SalaryConfig {
+  id                  String   @id @default(cuid())
+  employeeId          String   @unique
+  employee            Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  basicSalary         Float
+  perDaySalary        Float
+  workingDaysPerMonth Int      @default(26)
+  houseAllowance      Float    @default(0)
+  medicalAllowance    Float    @default(0)
+  transportAllowance  Float    @default(0)
+  otherAllowances     Float    @default(0)
+  providentFund       Float    @default(0)
+  taxRate             Float    @default(0)
+  otherDeductions     Float    @default(0)
+  bonusPerDayPercent  Float    @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model MonthlyPayroll {
+  id              String   @id @default(cuid())
+  month           Int
+  year            Int
+  status          String   @default("draft")
+  totalGross      Float    @default(0)
+  totalDeductions Float    @default(0)
+  totalNet        Float    @default(0)
+  employeeCount   Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  records         SalaryRecord[]
+
+  @@unique([month, year])
+}
+
+model SalaryRecord {
+  id                String   @id @default(cuid())
+  employeeId        String
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  payrollId         String?
+  payroll           MonthlyPayroll? @relation(fields: [payrollId], references: [id], onDelete: SetNull)
+  month             Int
+  year              Int
+  workingDays       Int
+  presentDays       Int
+  absentDays        Int
+  allowedLeaves     Int      @default(0)
+  lateDays          Int      @default(0)
+  basicSalary       Float
+  perDaySalary      Float
+  grossSalary       Float
+  leaveDeduction    Float    @default(0)
+  lateDeduction     Float    @default(0)
+  bonus             Float    @default(0)
+  houseAllowance    Float    @default(0)
+  medicalAllowance  Float    @default(0)
+  transportAllowance Float   @default(0)
+  otherAllowances   Float    @default(0)
+  totalAllowances   Float    @default(0)
+  providentFund     Float    @default(0)
+  taxDeduction      Float    @default(0)
+  advanceDeduction  Float    @default(0)
+  securityDeduction Float    @default(0)
+  otherDeductions   Float    @default(0)
+  totalDeductions   Float    @default(0)
+  netSalary         Float
+  payStatus         String   @default("pending")
+  payDate           DateTime?
+  remarks           String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([employeeId, month, year])
+}

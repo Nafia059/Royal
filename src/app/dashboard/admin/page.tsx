@@ -1,0 +1,963 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import Sidebar from "@/components/Sidebar";
+import {
+  Users,
+  GraduationCap,
+  Heart,
+  School,
+  BookOpen,
+  ClipboardList,
+  BarChart3,
+  Calendar,
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  Clock,
+  FileText,
+} from "lucide-react";
+
+interface Student {
+  id: string;
+  user: { id: string; name: string; email: string };
+  classId: string;
+  class?: { id: string; name: string; section: string };
+  dateOfBirth: string | null;
+  gender: string | null;
+  phone: string | null;
+  address: string | null;
+  admissionNumber: string | null;
+}
+
+interface Teacher {
+  id: string;
+  user: { id: string; name: string; email: string };
+  phone: string | null;
+  address: string | null;
+  qualification: string | null;
+  employeeId: string | null;
+  subjectAssignments?: { subject: { name: string }; class: { name: string } }[];
+}
+
+interface Parent {
+  id: string;
+  user: { id: string; name: string; email: string };
+  phone: string | null;
+  address: string | null;
+  occupation: string | null;
+  children?: { id: string }[];
+}
+
+interface ClassItem {
+  id: string;
+  name: string;
+  section: string;
+  capacity: number | null;
+  students?: { id: string }[];
+  teacher?: { user: { name: string } } | null;
+}
+
+interface Subject {
+  id: string;
+  name: string;
+  code: string;
+  description: string | null;
+}
+
+interface Assignment {
+  id: string;
+  teacherId: string;
+  subjectId: string;
+  classId: string;
+  teacher: { user: { name: string } };
+  subject: { name: string };
+  class: { name: string; section: string };
+}
+
+interface Exam {
+  id: string;
+  name: string;
+  date: string;
+  totalMarks: number;
+  passingMarks: number;
+  type: string | null;
+  classId: string;
+  subjectId: string;
+  class: { name: string; section: string };
+  subject: { name: string };
+}
+
+interface Result {
+  id: string;
+  marksObtained: number;
+  remarks: string | null;
+  student: { user: { name: string } };
+  exam: { name: string };
+  subject: { name: string };
+}
+
+interface Attendance {
+  id: string;
+  date: string;
+  status: string;
+  remarks: string | null;
+  student: { user: { name: string } };
+  class: { id: string; name: string; section: string };
+  subject: { name: string };
+  classId: string;
+  subjectId: string;
+}
+
+interface TimetableEntry {
+  id: string;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  class: { id: string; name: string; section: string };
+  subject: { name: string };
+  teacher: { user: { name: string } };
+  classId: string;
+  subjectId: string;
+}
+
+type Tab = "overview" | "students" | "teachers" | "parents" | "classes" | "subjects" | "assignments" | "attendance" | "exams" | "results" | "timetable";
+
+const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "students", label: "Students", icon: GraduationCap },
+  { id: "teachers", label: "Teachers", icon: Users },
+  { id: "parents", label: "Parents", icon: Heart },
+  { id: "classes", label: "Classes", icon: School },
+  { id: "subjects", label: "Subjects", icon: BookOpen },
+  { id: "assignments", label: "Assignments", icon: ClipboardList },
+  { id: "attendance", label: "Attendance", icon: Clock },
+  { id: "exams", label: "Exams", icon: FileText },
+  { id: "results", label: "Results", icon: BarChart3 },
+  { id: "timetable", label: "Timetable", icon: Calendar },
+];
+
+const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+const emptyStudentForm = { name: "", email: "", password: "", classId: "", admissionNumber: "", gender: "", phone: "", address: "", dateOfBirth: "" };
+const emptyTeacherForm = { name: "", email: "", password: "", employeeId: "", phone: "", address: "", qualification: "" };
+const emptyParentForm = { name: "", email: "", password: "", phone: "", address: "", occupation: "" };
+const emptyClassForm = { name: "", section: "", capacity: "", teacherId: "" };
+const emptySubjectForm = { name: "", code: "", description: "" };
+const emptyAssignmentForm = { teacherId: "", subjectId: "", classId: "" };
+
+export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [loading, setLoading] = useState(true);
+
+  const [students, setStudents] = useState<Student[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [parents, setParents] = useState<Parent[]>([]);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [results, setResults] = useState<Result[]>([]);
+  const [attendance, setAttendance] = useState<Attendance[]>([]);
+  const [timetable, setTimetable] = useState<TimetableEntry[]>([]);
+
+  const [timetableClassFilter, setTimetableClassFilter] = useState("");
+  const [attendanceDateFilter, setAttendanceDateFilter] = useState("");
+  const [attendanceClassFilter, setAttendanceClassFilter] = useState("");
+
+  const [modal, setModal] = useState<{ type: string; mode: "add" | "edit"; data?: Record<string, string> } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: string; id: string } | null>(null);
+
+  const [studentForm, setStudentForm] = useState(emptyStudentForm);
+  const [teacherForm, setTeacherForm] = useState(emptyTeacherForm);
+  const [parentForm, setParentForm] = useState(emptyParentForm);
+  const [classForm, setClassForm] = useState(emptyClassForm);
+  const [subjectForm, setSubjectForm] = useState(emptySubjectForm);
+  const [assignmentForm, setAssignmentForm] = useState(emptyAssignmentForm);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [sRes, tRes, pRes, cRes, subRes, aRes, eRes, rRes, attRes, ttRes] =
+        await Promise.all([
+          fetch("/api/students"),
+          fetch("/api/teachers"),
+          fetch("/api/parents"),
+          fetch("/api/classes"),
+          fetch("/api/subjects"),
+          fetch("/api/assignments"),
+          fetch("/api/exams"),
+          fetch("/api/results"),
+          fetch("/api/attendance"),
+          fetch("/api/timetable"),
+        ]);
+
+      const [s, t, p, c, sub, a, e, r, att, tt] = await Promise.all([
+        sRes.json(),
+        tRes.json(),
+        pRes.json(),
+        cRes.json(),
+        subRes.json(),
+        aRes.json(),
+        eRes.json(),
+        rRes.json(),
+        attRes.json(),
+        ttRes.json(),
+      ]);
+
+      setStudents(s);
+      setTeachers(t);
+      setParents(p);
+      setClasses(c);
+      setSubjects(sub);
+      setAssignments(a);
+      setExams(e);
+      setResults(r);
+      setAttendance(att);
+      setTimetable(tt);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (timetableClassFilter) {
+      fetch(`/api/timetable?classId=${timetableClassFilter}`)
+        .then((r) => r.json())
+        .then(setTimetable)
+        .catch(console.error);
+    }
+  }, [timetableClassFilter]);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (attendanceDateFilter) params.set("date", attendanceDateFilter);
+    if (attendanceClassFilter) params.set("classId", attendanceClassFilter);
+    const qs = params.toString();
+    fetch(`/api/attendance${qs ? `?${qs}` : ""}`)
+      .then((r) => r.json())
+      .then(setAttendance)
+      .catch(console.error);
+  }, [attendanceDateFilter, attendanceClassFilter]);
+
+  const openAddModal = (type: string) => {
+    if (type === "student") setStudentForm(emptyStudentForm);
+    if (type === "teacher") setTeacherForm(emptyTeacherForm);
+    if (type === "parent") setParentForm(emptyParentForm);
+    if (type === "class") setClassForm(emptyClassForm);
+    if (type === "subject") setSubjectForm(emptySubjectForm);
+    if (type === "assignment") setAssignmentForm(emptyAssignmentForm);
+    setModal({ type, mode: "add" });
+  };
+
+  const openEditModal = (type: string, record: Student | Teacher | Parent | ClassItem | Subject) => {
+    const r = record as unknown as Record<string, unknown>;
+    const user = r.user as { name: string; email: string } | undefined;
+    if (type === "student") {
+      setStudentForm({
+        name: user?.name || "",
+        email: user?.email || "",
+        password: "",
+        classId: (r.classId as string) || "",
+        admissionNumber: (r.admissionNumber as string) || "",
+        gender: (r.gender as string) || "",
+        phone: (r.phone as string) || "",
+        address: (r.address as string) || "",
+        dateOfBirth: r.dateOfBirth ? String(r.dateOfBirth).split("T")[0] : "",
+      });
+    } else if (type === "teacher") {
+      setTeacherForm({
+        name: user?.name || "",
+        email: user?.email || "",
+        password: "",
+        employeeId: (r.employeeId as string) || "",
+        phone: (r.phone as string) || "",
+        address: (r.address as string) || "",
+        qualification: (r.qualification as string) || "",
+      });
+    } else if (type === "parent") {
+      setParentForm({
+        name: user?.name || "",
+        email: user?.email || "",
+        password: "",
+        phone: (r.phone as string) || "",
+        address: (r.address as string) || "",
+        occupation: (r.occupation as string) || "",
+      });
+    } else if (type === "class") {
+      setClassForm({
+        name: (r.name as string) || "",
+        section: (r.section as string) || "",
+        capacity: r.capacity ? String(r.capacity) : "",
+        teacherId: (r.teacherId as string) || "",
+      });
+    } else if (type === "subject") {
+      setSubjectForm({
+        name: (r.name as string) || "",
+        code: (r.code as string) || "",
+        description: (r.description as string) || "",
+      });
+    } else if (type === "assignment") {
+      setAssignmentForm({
+        teacherId: (r.teacherId as string) || "",
+        subjectId: (r.subjectId as string) || "",
+        classId: (r.classId as string) || "",
+      });
+    }
+    setModal({ type, mode: "edit", data: { id: (r.id as string) || "" } });
+  };
+
+  const handleStudentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const method = modal?.mode === "edit" ? "PUT" : "POST";
+    const url = modal?.mode === "edit" ? `/api/students/${modal.data?.id}` : "/api/students";
+    await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(studentForm),
+    });
+    setModal(null);
+    fetchData();
+  };
+
+  const handleTeacherSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const method = modal?.mode === "edit" ? "PUT" : "POST";
+    const url = modal?.mode === "edit" ? `/api/teachers/${modal.data?.id}` : "/api/teachers";
+    await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(teacherForm),
+    });
+    setModal(null);
+    fetchData();
+  };
+
+  const handleParentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const method = modal?.mode === "edit" ? "PUT" : "POST";
+    const url = modal?.mode === "edit" ? `/api/parents/${modal.data?.id}` : "/api/parents";
+    await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(parentForm),
+    });
+    setModal(null);
+    fetchData();
+  };
+
+  const handleClassSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await fetch("/api/classes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...classForm, capacity: classForm.capacity ? Number(classForm.capacity) : undefined }),
+    });
+    setModal(null);
+    fetchData();
+  };
+
+  const handleSubjectSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await fetch("/api/subjects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(subjectForm),
+    });
+    setModal(null);
+    fetchData();
+  };
+
+  const handleAssignmentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await fetch("/api/assignments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(assignmentForm),
+    });
+    setModal(null);
+    fetchData();
+  };
+
+  const handleDelete = async (type: string, id: string) => {
+    const url = `/${type}/${id}`;
+    await fetch(`/api${url}`, { method: "DELETE" });
+    setDeleteConfirm(null);
+    fetchData();
+  };
+
+  const today = new Date().toISOString().split("T")[0];
+  const todayAttendance = attendance.filter((a) => a.date === today);
+  const presentToday = todayAttendance.filter((a) => a.status === "present").length;
+
+  const filteredAttendance = attendance.filter((a) => {
+    if (attendanceDateFilter && a.date !== attendanceDateFilter) return false;
+    if (attendanceClassFilter && a.classId !== attendanceClassFilter) return false;
+    return true;
+  });
+
+  const filteredTimetable = timetable.filter((t) => {
+    if (timetableClassFilter && t.classId !== timetableClassFilter) return false;
+    return true;
+  });
+
+  const timeSlots = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen bg-gray-100">
+      <Sidebar role="admin" user={{ fullName: "Admin", role: "admin" }} />
+
+      <main className="flex-1 p-6 ml-64">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Admin Dashboard</h1>
+          <p className="text-sm text-gray-500">Manage your school system</p>
+        </div>
+
+        <div className="flex gap-1 mb-6 overflow-x-auto pb-2 border-b border-gray-200">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                  activeTab === tab.id
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                <Icon size={16} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {activeTab === "overview" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {[
+              { label: "Total Students", value: students.length, icon: GraduationCap, color: "text-blue-600", bg: "bg-blue-50" },
+              { label: "Total Teachers", value: teachers.length, icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
+              { label: "Total Parents", value: parents.length, icon: Heart, color: "text-pink-600", bg: "bg-pink-50" },
+              { label: "Total Classes", value: classes.length, icon: School, color: "text-green-600", bg: "bg-green-50" },
+              { label: "Total Subjects", value: subjects.length, icon: BookOpen, color: "text-orange-600", bg: "bg-orange-50" },
+              { label: "Today Present", value: presentToday, icon: ClipboardList, color: "text-teal-600", bg: "bg-teal-50" },
+            ].map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="bg-white rounded-xl shadow-sm p-5 flex items-center gap-4">
+                  <div className={`p-3 rounded-lg ${stat.bg}`}>
+                    <Icon className={stat.color} size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">{stat.label}</p>
+                    <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === "students" && (
+          <Section
+            title="Students"
+            onAdd={() => openAddModal("student")}
+          >
+            <TableHeader>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Roll #</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Admission #</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </TableHeader>
+            <TableBody>
+              {students.map((s) => (
+                <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{s.user.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{s.class ? `${s.class.name} - ${s.class.section}` : "N/A"}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{s.admissionNumber || "N/A"}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{s.admissionNumber || "N/A"}</td>
+                  <td className="px-4 py-3 text-sm text-right space-x-2">
+                    <button onClick={() => openEditModal("student", s)} className="text-blue-600 hover:text-blue-800"><Pencil size={15} /></button>
+                    <button onClick={() => setDeleteConfirm({ type: "student", id: s.id })} className="text-red-600 hover:text-red-800"><Trash2 size={15} /></button>
+                  </td>
+                </tr>
+              ))}
+              {students.length === 0 && <EmptyRow colSpan={5} />}
+            </TableBody>
+          </Section>
+        )}
+
+        {activeTab === "teachers" && (
+          <Section title="Teachers" onAdd={() => openAddModal("teacher")}>
+            <TableHeader>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employee ID</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subjects</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </TableHeader>
+            <TableBody>
+              {teachers.map((t) => (
+                <tr key={t.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{t.user.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{t.employeeId || "N/A"}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{t.subjectAssignments?.map((sa) => sa.subject.name).join(", ") || "N/A"}</td>
+                  <td className="px-4 py-3 text-sm text-right space-x-2">
+                    <button onClick={() => openEditModal("teacher", t)} className="text-blue-600 hover:text-blue-800"><Pencil size={15} /></button>
+                    <button onClick={() => setDeleteConfirm({ type: "teacher", id: t.id })} className="text-red-600 hover:text-red-800"><Trash2 size={15} /></button>
+                  </td>
+                </tr>
+              ))}
+              {teachers.length === 0 && <EmptyRow colSpan={4} />}
+            </TableBody>
+          </Section>
+        )}
+
+        {activeTab === "parents" && (
+          <Section title="Parents" onAdd={() => openAddModal("parent")}>
+            <TableHeader>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Relation</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Children</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </TableHeader>
+            <TableBody>
+              {parents.map((p) => (
+                <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{p.user.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{p.occupation || "N/A"}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{p.children?.length || 0}</td>
+                  <td className="px-4 py-3 text-sm text-right space-x-2">
+                    <button onClick={() => openEditModal("parent", p)} className="text-blue-600 hover:text-blue-800"><Pencil size={15} /></button>
+                    <button onClick={() => setDeleteConfirm({ type: "parent", id: p.id })} className="text-red-600 hover:text-red-800"><Trash2 size={15} /></button>
+                  </td>
+                </tr>
+              ))}
+              {parents.length === 0 && <EmptyRow colSpan={4} />}
+            </TableBody>
+          </Section>
+        )}
+
+        {activeTab === "classes" && (
+          <Section title="Classes" onAdd={() => openAddModal("class")}>
+            <TableHeader>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Section</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Teacher</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Students</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </TableHeader>
+            <TableBody>
+              {classes.map((c) => (
+                <tr key={c.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{c.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{c.section}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{c.teacher?.user?.name || "N/A"}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{c.students?.length || 0}</td>
+                  <td className="px-4 py-3 text-sm text-right space-x-2">
+                    <button onClick={() => openEditModal("class", c)} className="text-blue-600 hover:text-blue-800"><Pencil size={15} /></button>
+                    <button onClick={() => setDeleteConfirm({ type: "class", id: c.id })} className="text-red-600 hover:text-red-800"><Trash2 size={15} /></button>
+                  </td>
+                </tr>
+              ))}
+              {classes.length === 0 && <EmptyRow colSpan={5} />}
+            </TableBody>
+          </Section>
+        )}
+
+        {activeTab === "subjects" && (
+          <Section title="Subjects" onAdd={() => openAddModal("subject")}>
+            <TableHeader>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </TableHeader>
+            <TableBody>
+              {subjects.map((s) => (
+                <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{s.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{s.code}</td>
+                  <td className="px-4 py-3 text-sm text-right space-x-2">
+                    <button onClick={() => openEditModal("subject", s)} className="text-blue-600 hover:text-blue-800"><Pencil size={15} /></button>
+                    <button onClick={() => setDeleteConfirm({ type: "subject", id: s.id })} className="text-red-600 hover:text-red-800"><Trash2 size={15} /></button>
+                  </td>
+                </tr>
+              ))}
+              {subjects.length === 0 && <EmptyRow colSpan={3} />}
+            </TableBody>
+          </Section>
+        )}
+
+        {activeTab === "assignments" && (
+          <Section title="Teacher-Subject Assignments" onAdd={() => openAddModal("assignment")}>
+            <TableHeader>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Teacher</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </TableHeader>
+            <TableBody>
+              {assignments.map((a) => (
+                <tr key={a.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{a.teacher.user.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{a.subject.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{a.class.name} - {a.class.section}</td>
+                  <td className="px-4 py-3 text-sm text-right">
+                    <button onClick={() => setDeleteConfirm({ type: "assignment", id: a.id })} className="text-red-600 hover:text-red-800"><Trash2 size={15} /></button>
+                  </td>
+                </tr>
+              ))}
+              {assignments.length === 0 && <EmptyRow colSpan={4} />}
+            </TableBody>
+          </Section>
+        )}
+
+        {activeTab === "attendance" && (
+          <div>
+            <div className="bg-white rounded-xl shadow-sm p-4 mb-4 flex gap-4 items-end flex-wrap">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
+                <input
+                  type="date"
+                  value={attendanceDateFilter}
+                  onChange={(e) => setAttendanceDateFilter(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Class</label>
+                <select
+                  value={attendanceClassFilter}
+                  onChange={(e) => setAttendanceClassFilter(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">All Classes</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name} - {c.section}</option>
+                  ))}
+                </select>
+              </div>
+              {(attendanceDateFilter || attendanceClassFilter) && (
+                <button
+                  onClick={() => { setAttendanceDateFilter(""); setAttendanceClassFilter(""); }}
+                  className="text-sm text-gray-500 hover:text-gray-700 underline"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+            <Section title="Attendance Records" noAdd>
+              <TableHeader>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
+              </TableHeader>
+              <TableBody>
+                {filteredAttendance.map((a) => (
+                  <tr key={a.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{a.student.user.name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{a.date}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        a.status === "present" ? "bg-green-100 text-green-700" :
+                        a.status === "absent" ? "bg-red-100 text-red-700" :
+                        "bg-yellow-100 text-yellow-700"
+                      }`}>{a.status}</span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{a.class.name} - {a.class.section}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{a.subject.name}</td>
+                  </tr>
+                ))}
+                {filteredAttendance.length === 0 && <EmptyRow colSpan={5} />}
+              </TableBody>
+            </Section>
+          </div>
+        )}
+
+        {activeTab === "exams" && (
+          <Section title="Exams" noAdd>
+            <TableHeader>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marks</th>
+            </TableHeader>
+            <TableBody>
+              {exams.map((e) => (
+                <tr key={e.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{e.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{e.subject.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{e.class.name} - {e.class.section}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{e.date}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{e.totalMarks}</td>
+                </tr>
+              ))}
+              {exams.length === 0 && <EmptyRow colSpan={5} />}
+            </TableBody>
+          </Section>
+        )}
+
+        {activeTab === "results" && (
+          <Section title="Results" noAdd>
+            <TableHeader>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Exam</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Marks</th>
+            </TableHeader>
+            <TableBody>
+              {results.map((r) => (
+                <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.student.user.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{r.exam.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{r.subject.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-600">{r.marksObtained}</td>
+                </tr>
+              ))}
+              {results.length === 0 && <EmptyRow colSpan={4} />}
+            </TableBody>
+          </Section>
+        )}
+
+        {activeTab === "timetable" && (
+          <div>
+            <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Filter by Class</label>
+              <select
+                value={timetableClassFilter}
+                onChange={(e) => setTimetableClassFilter(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">All Classes</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name} - {c.section}</option>
+                ))}
+              </select>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm p-6 overflow-x-auto">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Timetable</h3>
+              <table className="w-full border-collapse min-w-[800px]">
+                <thead>
+                  <tr>
+                    <th className="border border-gray-200 px-3 py-2 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">Day</th>
+                    {timeSlots.map((slot) => (
+                      <th key={slot} className="border border-gray-200 px-3 py-2 bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase">{slot}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {days.filter((d) => d !== "Sunday").map((day) => (
+                    <tr key={day}>
+                      <td className="border border-gray-200 px-3 py-2 font-medium text-sm bg-gray-50">{day}</td>
+                      {timeSlots.map((slot) => {
+                        const entry = filteredTimetable.find((t) => t.dayOfWeek === day && t.startTime === slot);
+                        return (
+                          <td key={slot} className="border border-gray-200 px-2 py-1 text-center">
+                            {entry ? (
+                              <div className="bg-blue-50 rounded p-1">
+                                <p className="text-xs font-medium text-blue-800">{entry.subject.name}</p>
+                                <p className="text-xs text-blue-600">{entry.teacher.user.name}</p>
+                              </div>
+                            ) : null}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {modal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setModal(null)}>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-5 border-b">
+                <h3 className="text-lg font-semibold text-gray-800">
+                  {modal.mode === "add" ? "Add" : "Edit"} {modal.type.charAt(0).toUpperCase() + modal.type.slice(1)}
+                </h3>
+                <button onClick={() => setModal(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+              </div>
+              <div className="p-5">
+                {modal.type === "student" && (
+                  <form onSubmit={handleStudentSubmit} className="space-y-4">
+                    <Input label="Full Name" value={studentForm.name} onChange={(v) => setStudentForm({ ...studentForm, name: v })} required />
+                    <Input label="Email" type="email" value={studentForm.email} onChange={(v) => setStudentForm({ ...studentForm, email: v })} required />
+                    {modal.mode === "add" && <Input label="Password" type="password" value={studentForm.password} onChange={(v) => setStudentForm({ ...studentForm, password: v })} required />}
+                    <div className="grid grid-cols-2 gap-4">
+                      <Select label="Class" value={studentForm.classId} onChange={(v) => setStudentForm({ ...studentForm, classId: v })} options={classes.map((c) => ({ value: c.id, label: `${c.name} - ${c.section}` }))} required />
+                      <Select label="Gender" value={studentForm.gender} onChange={(v) => setStudentForm({ ...studentForm, gender: v })} options={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }]} />
+                    </div>
+                    <Input label="Admission Number" value={studentForm.admissionNumber} onChange={(v) => setStudentForm({ ...studentForm, admissionNumber: v })} />
+                    <Input label="Phone" value={studentForm.phone} onChange={(v) => setStudentForm({ ...studentForm, phone: v })} />
+                    <Input label="Date of Birth" type="date" value={studentForm.dateOfBirth} onChange={(v) => setStudentForm({ ...studentForm, dateOfBirth: v })} />
+                    <Input label="Address" value={studentForm.address} onChange={(v) => setStudentForm({ ...studentForm, address: v })} />
+                    <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium">Save</button>
+                  </form>
+                )}
+                {modal.type === "teacher" && (
+                  <form onSubmit={handleTeacherSubmit} className="space-y-4">
+                    <Input label="Full Name" value={teacherForm.name} onChange={(v) => setTeacherForm({ ...teacherForm, name: v })} required />
+                    <Input label="Email" type="email" value={teacherForm.email} onChange={(v) => setTeacherForm({ ...teacherForm, email: v })} required />
+                    {modal.mode === "add" && <Input label="Password" type="password" value={teacherForm.password} onChange={(v) => setTeacherForm({ ...teacherForm, password: v })} required />}
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input label="Employee ID" value={teacherForm.employeeId} onChange={(v) => setTeacherForm({ ...teacherForm, employeeId: v })} />
+                      <Input label="Qualification" value={teacherForm.qualification} onChange={(v) => setTeacherForm({ ...teacherForm, qualification: v })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input label="Phone" value={teacherForm.phone} onChange={(v) => setTeacherForm({ ...teacherForm, phone: v })} />
+                      <Input label="Address" value={teacherForm.address} onChange={(v) => setTeacherForm({ ...teacherForm, address: v })} />
+                    </div>
+                    <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium">Save</button>
+                  </form>
+                )}
+                {modal.type === "parent" && (
+                  <form onSubmit={handleParentSubmit} className="space-y-4">
+                    <Input label="Full Name" value={parentForm.name} onChange={(v) => setParentForm({ ...parentForm, name: v })} required />
+                    <Input label="Email" type="email" value={parentForm.email} onChange={(v) => setParentForm({ ...parentForm, email: v })} required />
+                    {modal.mode === "add" && <Input label="Password" type="password" value={parentForm.password} onChange={(v) => setParentForm({ ...parentForm, password: v })} required />}
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input label="Phone" value={parentForm.phone} onChange={(v) => setParentForm({ ...parentForm, phone: v })} />
+                      <Input label="Occupation" value={parentForm.occupation} onChange={(v) => setParentForm({ ...parentForm, occupation: v })} />
+                    </div>
+                    <Input label="Address" value={parentForm.address} onChange={(v) => setParentForm({ ...parentForm, address: v })} />
+                    <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium">Save</button>
+                  </form>
+                )}
+                {modal.type === "class" && (
+                  <form onSubmit={handleClassSubmit} className="space-y-4">
+                    <Input label="Class Name" value={classForm.name} onChange={(v) => setClassForm({ ...classForm, name: v })} required />
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input label="Section" value={classForm.section} onChange={(v) => setClassForm({ ...classForm, section: v })} required />
+                      <Input label="Capacity" type="number" value={classForm.capacity} onChange={(v) => setClassForm({ ...classForm, capacity: v })} />
+                    </div>
+                    <Select label="Class Teacher" value={classForm.teacherId} onChange={(v) => setClassForm({ ...classForm, teacherId: v })} options={teachers.map((t) => ({ value: t.id, label: t.user.name }))} />
+                    <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium">Save</button>
+                  </form>
+                )}
+                {modal.type === "subject" && (
+                  <form onSubmit={handleSubjectSubmit} className="space-y-4">
+                    <Input label="Subject Name" value={subjectForm.name} onChange={(v) => setSubjectForm({ ...subjectForm, name: v })} required />
+                    <Input label="Subject Code" value={subjectForm.code} onChange={(v) => setSubjectForm({ ...subjectForm, code: v })} required />
+                    <Input label="Description" value={subjectForm.description} onChange={(v) => setSubjectForm({ ...subjectForm, description: v })} />
+                    <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium">Save</button>
+                  </form>
+                )}
+                {modal.type === "assignment" && (
+                  <form onSubmit={handleAssignmentSubmit} className="space-y-4">
+                    <Select label="Teacher" value={assignmentForm.teacherId} onChange={(v) => setAssignmentForm({ ...assignmentForm, teacherId: v })} options={teachers.map((t) => ({ value: t.id, label: t.user.name }))} required />
+                    <Select label="Subject" value={assignmentForm.subjectId} onChange={(v) => setAssignmentForm({ ...assignmentForm, subjectId: v })} options={subjects.map((s) => ({ value: s.id, label: s.name }))} required />
+                    <Select label="Class" value={assignmentForm.classId} onChange={(v) => setAssignmentForm({ ...assignmentForm, classId: v })} options={classes.map((c) => ({ value: c.id, label: `${c.name} - ${c.section}` }))} required />
+                    <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-medium">Save</button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDeleteConfirm(null)}>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Confirm Delete</h3>
+              <p className="text-sm text-gray-600 mb-6">Are you sure you want to delete this {deleteConfirm.type}? This action cannot be undone.</p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
+                <button onClick={() => handleDelete(deleteConfirm.type, deleteConfirm.id)} className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function Section({ title, onAdd, noAdd, children }: { title: string; onAdd?: () => void; noAdd?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between p-5 border-b border-gray-100">
+        <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+        {!noAdd && onAdd && (
+          <button onClick={onAdd} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            <Plus size={16} /> Add {title.slice(0, -1)}
+          </button>
+        )}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          {children}
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function TableHeader({ children }: { children: React.ReactNode }) {
+  return <thead className="bg-gray-50"><tr>{children}</tr></thead>;
+}
+
+function TableBody({ children }: { children: React.ReactNode }) {
+  return <tbody className="divide-y divide-gray-100">{children}</tbody>;
+}
+
+function EmptyRow({ colSpan }: { colSpan: number }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-4 py-12 text-center text-sm text-gray-500">
+        No records found
+      </td>
+    </tr>
+  );
+}
+
+function Input({ label, value, onChange, type = "text", required }: { label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+      />
+    </div>
+  );
+}
+
+function Select({ label, value, onChange, options, required }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; required?: boolean }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+      >
+        <option value="">Select {label}</option>
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}

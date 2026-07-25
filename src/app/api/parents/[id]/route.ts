@@ -40,7 +40,7 @@ export async function PUT(
       data: { phone },
     });
 
-    if (username || email) {
+    if ((username || email) && profile.userId) {
       await tx.user.update({
         where: { id: profile.userId },
         data: { ...(username && { username }), ...(email && { email }) },

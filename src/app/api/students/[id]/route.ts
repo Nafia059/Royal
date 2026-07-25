@@ -77,7 +77,10 @@ export async function DELETE(
   await prisma.$transaction(async (tx) => {
     await tx.attendance.deleteMany({ where: { studentId: id } });
     await tx.result.deleteMany({ where: { studentId: id } });
-    await tx.parentProfile.updateMany({ where: { students: { some: { id } } }, data: { students: { disconnect: { id } } } });
+    const parents = await tx.parentProfile.findMany({ where: { students: { some: { id } } } });
+    for (const p of parents) {
+      await tx.parentProfile.update({ where: { id: p.id }, data: { students: { disconnect: { id } } } });
+    }
     if (profile.userId) {
       await tx.user.delete({ where: { id: profile.userId } });
     } else {

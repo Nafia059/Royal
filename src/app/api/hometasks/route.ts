@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     include: {
       assignedClass: true,
       subject: true,
-      teacher: { include: { user: { select: { username: true } } } },
+      assignedBy: { include: { user: { select: { username: true } } } },
     },
     orderBy: { dueDate: "asc" },
   });

@@ -3,14 +3,14 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!prisma) {
     return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
   }
-
+  const { id } = await params;
   const employee = await prisma.employee.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { salaryConfig: true },
   });
 
@@ -23,29 +23,25 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!prisma) {
     return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
   }
-
+  const { id } = await params;
   const body = await request.json();
   const { basicSalary, ...employeeData } = body;
 
-  const employee = await prisma.employee.update({
-    where: { id: params.id },
-    data: employeeData,
-  });
+  await prisma.employee.update({ where: { id }, data: employeeData });
 
-  // If basicSalary is provided, upsert SalaryConfig
   if (basicSalary !== undefined && basicSalary !== null) {
     const workingDaysPerMonth = body.workingDaysPerMonth || 26;
     const perDaySalary = Number(basicSalary) / workingDaysPerMonth;
 
     await prisma.salaryConfig.upsert({
-      where: { employeeId: params.id },
+      where: { employeeId: id },
       create: {
-        employeeId: params.id,
+        employeeId: id,
         basicSalary: Number(basicSalary),
         perDaySalary,
         workingDaysPerMonth,
@@ -75,7 +71,7 @@ export async function PUT(
   }
 
   const result = await prisma.employee.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { salaryConfig: true },
   });
 
@@ -84,15 +80,12 @@ export async function PUT(
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!prisma) {
     return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
   }
-
-  await prisma.employee.delete({
-    where: { id: params.id },
-  });
-
+  const { id } = await params;
+  await prisma.employee.delete({ where: { id } });
   return NextResponse.json({ message: "Employee deleted" });
 }

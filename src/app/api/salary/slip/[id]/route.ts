@@ -3,14 +3,15 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   if (!prisma) {
     return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
   }
 
+  const { id } = await params;
   const record = await prisma.salaryRecord.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       employee: true,
       payroll: true,

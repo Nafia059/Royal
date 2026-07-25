@@ -7,13 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate",
+    "postinstall": "npx prisma generate",
     "db:push": "npx prisma db push",
     "db:seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.9.0",
     "bcryptjs": "^3.0.3",
+    "prisma": "^7.9.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "jsonwebtoken": "^9.0.3",

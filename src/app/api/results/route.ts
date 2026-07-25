@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const results = await prisma.result.findMany({
     where,
     include: {
-      student: { include: { user: { select: { name: true } } } },
+      student: { include: { user: { select: { username: true } } } },
       exam: true,
       subject: true,
     },

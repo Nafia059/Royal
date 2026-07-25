@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   const subjects = await prisma.subject.findMany({
     where,
-    include: { assignments: { include: { teacher: { include: { user: { select: { name: true } } } }, class: true } } },
+    include: { assignments: { include: { teacher: { include: { user: { select: { username: true } } } }, class: true } } },
     orderBy: { name: "asc" },
   });
 

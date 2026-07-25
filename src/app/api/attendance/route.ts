@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const attendance = await prisma.attendance.findMany({
     where,
     include: {
-      student: { include: { user: { select: { name: true } } } },
+      student: { include: { user: { select: { username: true } } } },
       class: true,
       subject: true,
     },

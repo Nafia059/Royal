@@ -13,7 +13,7 @@ export async function GET(
   const teacher = await prisma.teacherProfile.findUnique({
     where: { id },
     include: {
-      user: { select: { id: true, name: true, email: true } },
+      user: { select: { id: true, username: true, email: true } },
       subjectAssignments: { include: { subject: true, class: true } },
     },
   });

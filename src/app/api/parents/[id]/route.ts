@@ -12,7 +12,7 @@ export async function GET(
   const { id } = await params;
   const parent = await prisma.parentProfile.findUnique({
     where: { id },
-    include: { user: { select: { id: true, name: true, email: true } }, children: true },
+    include: { user: { select: { id: true, username: true, email: true } }, children: true },
   });
 
   if (!parent) {

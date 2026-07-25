@@ -12,7 +12,7 @@ export async function GET(
   const { id } = await params;
   const student = await prisma.studentProfile.findUnique({
     where: { id },
-    include: { class: true, user: { select: { id: true, name: true, email: true } } },
+    include: { class: true, user: { select: { id: true, username: true, email: true } } },
   });
 
   if (!student) {

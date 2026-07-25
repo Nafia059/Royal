@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const teachers = await prisma.teacherProfile.findMany({
     where,
     include: {
-      user: { select: { id: true, name: true, email: true } },
+      user: { select: { id: true, username: true, email: true } },
       subjectAssignments: { include: { subject: true, class: true } },
     },
     orderBy: { createdAt: "desc" },

@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const assignments = await prisma.teacherSubjectAssignment.findMany({
     where,
     include: {
-      teacher: { include: { user: { select: { name: true, email: true } } } },
+      teacher: { include: { user: { select: { username: true, email: true } } } },
       subject: true,
       class: true,
     },
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   const assignment = await prisma.teacherSubjectAssignment.create({
     data: { teacherId, subjectId, classId, schoolId },
-    include: { teacher: { include: { user: { select: { name: true } } } }, subject: true, class: true },
+    include: { teacher: { include: { user: { select: { username: true } } } }, subject: true, class: true },
   });
 
   return NextResponse.json(assignment, { status: 201 });

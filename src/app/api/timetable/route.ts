@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     include: {
       class: true,
       subject: true,
-      teacher: { include: { user: { select: { name: true } } } },
+      teacher: { include: { user: { select: { username: true } } } },
     },
     orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
   });

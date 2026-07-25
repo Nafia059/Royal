@@ -16,7 +16,6 @@ export async function GET(request: NextRequest) {
   const parents = await prisma.parentProfile.findMany({
     where,
     include: { user: { select: { id: true, username: true, email: true } }, students: true },
-    orderBy: { createdAt: "desc" },
   });
 
   return NextResponse.json(parents);

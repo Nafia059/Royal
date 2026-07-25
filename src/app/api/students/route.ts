@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
   const students = await prisma.studentProfile.findMany({
     where,
     include: { studentClass: true, user: { select: { id: true, username: true, email: true } } },
-    orderBy: { createdAt: "desc" },
   });
 
   return NextResponse.json(students);

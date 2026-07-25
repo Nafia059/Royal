@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
       user: { select: { id: true, username: true, email: true } },
       subjectAssignments: { include: { subject: true, assignedClass: true } },
     },
-    orderBy: { createdAt: "desc" },
   });
 
   return NextResponse.json(teachers);

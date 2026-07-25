@@ -187,11 +187,24 @@ export default function AdminDashboard() {
 
   const handleSubmit = async (e: React.FormEvent, type: string, form: Record<string, string>) => {
     e.preventDefault();
+    const cleaned: Record<string, string> = {};
+    for (const [k, v] of Object.entries(form)) {
+      if (v !== "" && v !== undefined) cleaned[k] = v;
+    }
     const method = modal?.mode === "edit" ? "PUT" : "POST";
     const url = modal?.mode === "edit" ? `/api/${type}s/${modal.data?.id}` : `/api/${type}s`;
-    await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
-    setModal(null);
-    fetchData();
+    try {
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(cleaned) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Failed to save");
+        return;
+      }
+      setModal(null);
+      fetchData();
+    } catch (err) {
+      alert("Network error");
+    }
   };
 
   const handleDelete = async (type: string, id: string) => {

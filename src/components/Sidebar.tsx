@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -92,8 +92,15 @@ export default function Sidebar({ role, user }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-  const search = useSearchParams().toString();
+  const [search, setSearch] = useState("");
   const links = roleLinks[role] || [];
+
+  useEffect(() => {
+    setSearch(window.location.search);
+    const handler = () => setSearch(window.location.search);
+    window.addEventListener("popstate", handler);
+    return () => window.removeEventListener("popstate", handler);
+  }, []);
   const displayUser = user || { fullName: "User", role };
 
   return (

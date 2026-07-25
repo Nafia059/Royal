@@ -158,9 +158,15 @@ export default function Sidebar({ role, user }: SidebarProps) {
                 : pathname === link.href;
               return (
                 <li key={link.href}>
-                  <Link
+                  <a
                     href={link.href}
-                    onClick={() => setMobileOpen(false)}
+                    onClick={(e) => {
+                      setMobileOpen(false);
+                      if (link.href.includes("?")) {
+                        e.preventDefault();
+                        window.location.href = link.href;
+                      }
+                    }}
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                       active
@@ -170,7 +176,7 @@ export default function Sidebar({ role, user }: SidebarProps) {
                   >
                     <Icon className="h-5 w-5 shrink-0" />
                     {!collapsed && <span>{link.label}</span>}
-                  </Link>
+                  </a>
                 </li>
               );
             })}

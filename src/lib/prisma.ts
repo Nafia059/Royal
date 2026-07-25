@@ -13,3 +13,4 @@ if (process.env.DATABASE_URL) {
 }
 
 export { prisma };
+export default prisma;

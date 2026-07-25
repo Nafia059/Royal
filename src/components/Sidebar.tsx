@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -44,12 +44,12 @@ interface SidebarProps {
 
 const adminLinks: NavLink[] = [
   { label: "Dashboard", href: "/dashboard/admin", icon: LayoutDashboard },
-  { label: "Students", href: "/dashboard/admin/students", icon: GraduationCap },
-  { label: "Teachers", href: "/dashboard/admin/teachers", icon: Users },
-  { label: "Parents", href: "/dashboard/admin/parents", icon: Heart },
-  { label: "Classes", href: "/dashboard/admin/classes", icon: School },
-  { label: "Subjects", href: "/dashboard/admin/subjects", icon: BookOpen },
-  { label: "Assignments", href: "/dashboard/admin/assignments", icon: ClipboardList },
+  { label: "Students", href: "/dashboard/admin?tab=students", icon: GraduationCap },
+  { label: "Teachers", href: "/dashboard/admin?tab=teachers", icon: Users },
+  { label: "Parents", href: "/dashboard/admin?tab=parents", icon: Heart },
+  { label: "Classes", href: "/dashboard/admin?tab=classes", icon: School },
+  { label: "Subjects", href: "/dashboard/admin?tab=subjects", icon: BookOpen },
+  { label: "Assignments", href: "/dashboard/admin?tab=assignments", icon: ClipboardList },
   { label: "Employees", href: "/employees", icon: Building2 },
   { label: "Salary Config", href: "/salary-config", icon: Calculator },
   { label: "Generate Salary", href: "/salary/generate", icon: Wallet },
@@ -92,6 +92,7 @@ export default function Sidebar({ role, user }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const search = useSearchParams().toString();
   const links = roleLinks[role] || [];
   const displayUser = user || { fullName: "User", role };
 
@@ -145,7 +146,9 @@ export default function Sidebar({ role, user }: SidebarProps) {
           <ul className="space-y-1">
             {links.map((link) => {
               const Icon = link.icon;
-              const active = pathname === link.href;
+              const active = link.href.includes("?")
+                ? pathname === link.href.split("?")[0] && search.includes(link.href.split("?")[1])
+                : pathname === link.href;
               return (
                 <li key={link.href}>
                   <Link

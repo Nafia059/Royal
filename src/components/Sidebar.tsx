@@ -36,7 +36,7 @@ interface NavLink {
 
 interface SidebarProps {
   role: "admin" | "teacher" | "student" | "parent";
-  user: {
+  user?: {
     fullName: string;
     role: string;
   };
@@ -93,6 +93,7 @@ export default function Sidebar({ role, user }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const links = roleLinks[role] || [];
+  const displayUser = user || { fullName: "User", role };
 
   return (
     <>
@@ -173,9 +174,9 @@ export default function Sidebar({ role, user }: SidebarProps) {
             </div>
             {!collapsed && (
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{user.fullName}</p>
+                <p className="truncate text-sm font-medium">{displayUser.fullName}</p>
                 <p className="truncate text-xs text-slate-400 capitalize">
-                  {user.role}
+                  {displayUser.role}
                 </p>
               </div>
             )}

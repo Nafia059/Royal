@@ -70,7 +70,7 @@ export async function DELETE(
   const { id } = await params;
   const profile = await prisma.studentProfile.findUnique({ where: { id } });
 
-  if (profile) {
+  if (profile && profile.userId) {
     await prisma.user.delete({ where: { id: profile.userId } });
   }
 

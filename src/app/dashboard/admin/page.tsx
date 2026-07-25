@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import {
   Users,
@@ -149,9 +148,15 @@ const emptySubjectForm = { name: "", code: "", description: "" };
 const emptyAssignmentForm = { teacherId: "", subjectId: "", classId: "" };
 
 export default function AdminDashboard() {
-  const searchParams = useSearchParams();
-  const initialTab = (searchParams.get("tab") as Tab) || "overview";
-  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+  const getInitialTab = (): Tab => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab") as Tab;
+      if (tab) return tab;
+    }
+    return "overview";
+  };
+  const [activeTab, setActiveTab] = useState<Tab>(getInitialTab);
   const [loading, setLoading] = useState(true);
 
   const [students, setStudents] = useState<Student[]>([]);
